@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>転生冒険記</title>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070b2a;--w:#10209e;--g:#ffd75e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font-family:'DotGothic16','Hiragino Sans',sans-serif;font-size:15px;line-height:1.6;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+#app{max-width:480px;margin:auto;padding:8px;display:flex;flex-direction:column;gap:8px;min-height:100vh}
+.win{background:var(--w);border:3px solid #fff;border-radius:8px;padding:10px;box-shadow:0 0 0 2px #000}
+.stage{background:radial-gradient(circle at 50% 60%,#1d2f8f,#070b2a 75%)}
+button{font:inherit;color:#fff;background:#0a1470;border:2px solid #fff;border-radius:6px;padding:10px;margin:3px 0;width:100%;text-align:left}
+button:active{background:var(--g);color:#000}
+button:disabled{opacity:.4}
+.row{display:flex;gap:6px}.row button{text-align:center}
+.bar{height:8px;background:#000;border:1px solid #fff;margin:2px 0 6px}.bar i{display:block;height:100%}
+.chr{width:100%;max-width:230px;display:block;margin:auto}
+.hd{display:flex;justify-content:space-between;color:var(--g)}
+.big{font-size:64px;text-align:center;line-height:1.2}
+h3{margin:8px 0 2px;color:var(--g);font-weight:normal}
+small{opacity:.8}
+</style></head><body>
+<div id="app">
+<div class="win hd" id="hd"></div>
+<div id="main"></div>
+<div class="win" id="log" style="min-height:70px"></div>
+<div class="row" id="tabs">
+<button onclick="go('st')">ステータス</button>
+<button onclick="go('gd')">ギルド</button>
+<button onclick="go('sh')">装備店</button>
+</div></div>
+<script>
+const $=s=>document.querySelector(s),R=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+// [名前, 強さ, 値段, 色]
+const ITEMS={
+weapon:[['ひのきのぼう',0,0,'#a67c52'],['鉄の剣',5,120,'#c9d1d9'],['鋼の剣',11,400,'#e8f1ff'],['魔剣ダークネス',20,1200,'#b36bff'],['聖剣エクスカリバー',32,3000,'#ffe27a']],
+armor:[['旅人の服',0,0,'#5f7399'],['革の鎧',4,100,'#8a5a34'],['鉄の鎧',10,350,'#9aa5b1'],['ミスリルの鎧',18,1100,'#6fdde6'],['竜王の鎧',30,2800,'#c93b2e']],
+helm:[['なし',0,0,''],['革の帽子',1,80,'#8a5a34'],['鉄かぶと',3,250,'#9aa5b1'],['ミスリルの冠',7,900,'#6fdde6']],
+cape:[['なし',0,0,''],['冒険者のマント',1,150,'#3d7a4a'],['賢者のマント',3,600,'#5a3da8'],['勇者のマント',6,2000,'#d62f3f']]};
+const SL=[['weapon','武器'],['armor','よろい'],['helm','かぶと'],['cape','マント']];
+// [名前, 消費MP, 威力, 種類, 習得Lv, 習得代]
+const SP=[['ファイア',3,14,'d',1,0],['ヒール',4,30,'h',3,100],['サンダー',8,40,'d',6,300],['メテオ',18,110,'d',12,800]];
+// [名前, 絵, HP, 攻撃, 経験値, ゴールド]
+const EN=[['スライム','💧',14,5,8,6],['ゴブリン','👺',28,9,16,12],['ダイアウルフ','🐺',50,15,30,22],['オーク','🐗',85,23,55,40],['ゴーレム','🗿',140,33,95,70],['ワイバーン','🐲',220,46,160,120],['暗黒騎士','🛡️',340,62,280,220],['魔王','👹',600,85,600,500]];
+const UN=[1,2,4,6,9,12,15,19],RK=['F','E','D','C','B','A','S','SS'];
+let P,B=null,tab='st',msg='';
+const mhp=()=>30+P.lv*12,mmp=()=>10+P.lv*6,bn=k=>ITEMS[k][P.eq[k]][1];
+const atk=()=>5+P.lv*3+bn('weapon'),def=()=>2+P.lv*2+bn('armor')+bn('helm')+bn('cape'),need=()=>P.lv*P.lv*10+20;
+const save=()=>{try{localStorage.setItem('tensei1',JSON.stringify(P))}catch(e){}};
+const bar=(v,m,c)=>`<div class="bar"><i style="width:${Math.max(0,100*v/m)}%;background:${c}"></i></div>`;
+
+function char(){
+ const t=Math.min(4,Math.floor((P.lv-1)/4)),wi=P.eq.weapon,ai=P.eq.armor,hi=P.eq.helm,ci=P.eq.cape;
+ const w=ITEMS.weapon[wi],a=ITEMS.armor[ai],h=ITEMS.helm[hi],c=ITEMS.cape[ci];
+ const hair=['#3a2416','#2f55b8','#7a3ac2','#e8ecff','#ffd75e'][t],au=['#fff','#7ab8ff','#b58cff','#fff3b0','#ffd75e'][t];
+ const len=46+wi*14;
+ let s=`<svg viewBox="0 0 200 290" class="chr"><defs><radialGradient id="au"><stop offset="0" stop-color="${au}" stop-opacity=".9"/><stop offset="1" stop-color="${au}" stop-opacity="0"/></radialGradient></defs>`;
+ if(t>0)s+=`<circle cx="100" cy="150" r="${70+t*9}" fill="url(#au)" opacity="${.25+t*.15}"/>`;
+ if(t>=3)s+=`<g fill="${au}"><path d="M30 70l3 8 8 3-8 3-3 8-3-8-8-3 8-3z"/><path d="M168 120l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/><path d="M40 200l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></g>`;
+ s+=`<ellipse cx="100" cy="270" rx="55" ry="9" fill="#000" opacity=".4"/>`;
+ if(ci)s+=`<path d="M68 98Q100 88 132 98L152 255Q100 274 48 255Z" fill="${c[3]}" stroke="#000" stroke-width="2"/>`;
+ s+=`<rect x="76" y="196" width="19" height="66" fill="#2a2f4a"/><rect x="105" y="196" width="19" height="66" fill="#2a2f4a"/><rect x="72" y="254" width="25" height="12" rx="3" fill="${ai>1?'#555':'#3a2a1a'}"/><rect x="103" y="254" width="25" height="12" rx="3" fill="${ai>1?'#555':'#3a2a1a'}"/>`;
+ s+=`<rect x="52" y="104" width="16" height="66" rx="6" fill="${a[3]}" stroke="#000" stroke-width="2"/><rect x="132" y="104" width="16" height="66" rx="6" fill="${a[3]}" stroke="#000" stroke-width="2"/><circle cx="60" cy="174" r="8" fill="#f3c9a0"/><circle cx="140" cy="174" r="8" fill="#f3c9a0"/>`;
+ s+=`<path d="M68 98L132 98L126 202L74 202Z" fill="${a[3]}" stroke="#000" stroke-width="2"/><rect x="72" y="188" width="56" height="9" fill="#3a2a1a"/>`;
+ if(ai>=2)s+=`<circle cx="62" cy="104" r="14" fill="${a[3]}" stroke="#000" stroke-width="2"/><circle cx="138" cy="104" r="14" fill="${a[3]}" stroke="#000" stroke-width="2"/>`;
+ if(ai>=3)s+=`<path d="M100 116l12 14-12 22-12-22z" fill="#ffd75e" stroke="#000" stroke-width="1.5"/>`;
+ s+=`<rect x="90" y="86" width="20" height="14" fill="#f3c9a0"/><circle cx="100" cy="68" r="26" fill="#f3c9a0" stroke="#000" stroke-width="2"/>`;
+ s+=`<path d="M73 68L68 38L84 52L90 26L100 48L112 24L116 52L132 38L127 68Q100 44 73 68Z" fill="${hair}" stroke="#000" stroke-width="2"/>`;
+ s+=`<rect x="88" y="68" width="6" height="8" fill="${t>=3?'#ffb300':'#222'}"/><rect x="106" y="68" width="6" height="8" fill="${t>=3?'#ffb300':'#222'}"/><path d="M92 82Q100 88 108 82" stroke="#7a3a2a" stroke-width="2" fill="none"/>`;
+ if(hi===1)s+=`<path d="M74 62Q100 26 126 62Z" fill="${h[3]}" stroke="#000" stroke-width="2"/>`;
+ if(hi===2)s+=`<path d="M73 66Q100 22 127 66Z" fill="${h[3]}" stroke="#000" stroke-width="2"/><rect x="96" y="50" width="8" height="26" fill="${h[3]}" stroke="#000"/>`;
+ if(hi===3)s+=`<path d="M74 54L80 28L92 44L100 20L108 44L120 28L126 54Z" fill="${h[3]}" stroke="#ffd75e" stroke-width="2.5"/>`;
+ s+=`<g transform="translate(144,176)" style="${wi>=3?`filter:drop-shadow(0 0 6px ${w[3]})`:''}"><rect x="-3" y="1" width="6" height="16" fill="#5a3a1a"/>`;
+ if(wi===0)s+=`<rect x="-4" y="-${len}" width="8" height="${len+4}" rx="3" fill="${w[3]}" stroke="#000" stroke-width="1.5"/>`;
+ else s+=`<rect x="-9" y="-3" width="18" height="5" fill="#ffd75e" stroke="#000"/><rect x="-4" y="-${len}" width="8" height="${len}" fill="${w[3]}" stroke="#000" stroke-width="1.5"/><path d="M-4 -${len}L0 -${len+10}L4 -${len}Z" fill="${w[3]}" stroke="#000" stroke-width="1.5"/>`;
+ return s+`</g></svg>`;
+}
+
+function statusV(){return `<div class="win stage">${char()}</div><div class="win">HP ${P.hp}/${mhp()}${bar(P.hp,mhp(),'#e0473c')}MP ${P.mp}/${mmp()}${bar(P.mp,mmp(),'#4aa3ff')}EXP ${P.exp}/${need()}${bar(P.exp,need(),'#ffd75e')}<p>こうげき ${atk()}　ぼうぎょ ${def()}</p><p>${SL.map(([k,n])=>`${n}：${ITEMS[k][P.eq[k]][0]}`).join('<br>')}</p><p>まほう：${P.sp.map(i=>SP[i][0]).join('、')}</p></div><button onclick="reset()"><small>さいしょからやりなおす</small></button>`}
+
+function guildV(){
+ const ur=UN.filter(u=>P.lv>=u).length-1;
+ let h=`<div class="win"><div>冒険者ランク ${RK[ur]}</div><h3>クエスト</h3>`;
+ for(let i=0;i<=ur;i++)h+=`<button onclick="fight(${i})">${EN[i][1]} ${EN[i][0]}討伐 <small>(推奨Lv${UN[i]})</small></button>`;
+ if(ur<7)h+=`<small>Lv${UN[ur+1]}で新しい依頼が解放されます</small>`;
+ h+=`<h3>魔法の習得</h3>`;
+ SP.forEach((s,i)=>{const k=P.sp.includes(i);h+=k?`<div>✓ ${s[0]} <small>MP${s[1]}</small></div>`:`<button ${P.lv<s[4]||P.gold<s[5]?'disabled':''} onclick="learn(${i})">${s[0]} <small>Lv${s[4]}〜 ${s[5]}G / MP${s[1]}</small></button>`});
+ return h+`<h3>やすむ</h3><button onclick="rest()">宿屋でHP・MPを全回復（無料）</button></div>`;
+}
+
+function shopV(){
+ let h='<div class="win">';
+ SL.forEach(([k,n])=>{h+=`<h3>${n}</h3>`;ITEMS[k].forEach((it,i)=>{if(!i)return;const own=P.eq[k]>=i;h+=`<button ${own||P.gold<it[2]?'disabled':''} onclick="buy('${k}',${i})">${it[0]} <small>+${it[1]} ／ ${own?(P.eq[k]===i?'装備中':'所持'):it[2]+'G'}</small></button>`})});
+ return h+'</div>';
+}
+
+function battleV(){
+ let h=`<div class="win stage"><div class="big">${B.ico}</div><div style="text-align:center">${B.n}</div>${bar(B.hp,B.max,'#e0473c')}</div><div class="win">HP ${P.hp}/${mhp()}${bar(P.hp,mhp(),'#e0473c')}MP ${P.mp}/${mmp()}${bar(P.mp,mmp(),'#4aa3ff')}`;
+ if(B.end)h+=`<button onclick="endB()">もどる</button>`;
+ else if(B.menu){P.sp.forEach(i=>h+=`<button onclick="act('m',${i})">${SP[i][0]} <small>MP${SP[i][1]}</small></button>`);h+=`<button onclick="B.menu=0;render()">やめる</button>`}
+ else h+=`<div class="row"><button onclick="act('a')">たたかう</button><button onclick="B.menu=1;render()">まほう</button><button onclick="act('r')">にげる</button></div>`;
+ return h+'</div>';
+}
+
+function render(){
+ $('#hd').innerHTML=`<span>${P.name}　Lv${P.lv}</span><span>${P.gold}G</span>`;
+ $('#main').innerHTML=B?battleV():{st:statusV,gd:guildV,sh:shopV}[tab]();
+ $('#tabs').style.display=B?'none':'flex';
+ $('#log').innerHTML=B?B.log.slice(-5).join('<br>'):msg;
+}
+function go(t){tab=t;msg='';render()}
+function fight(i){const e=EN[i];B={i,n:e[0],ico:e[1],hp:e[2],max:e[2],atk:e[3],exp:e[4],g:e[5],log:[`${e[0]}が あらわれた！`],end:0,menu:0};render()}
+function eAtk(){const d=Math.max(1,B.atk-Math.floor(def()/2)+R(-2,2));P.hp-=d;B.log.push(`${B.n}の こうげき！ ${d}ダメージ！`);if(P.hp<=0)lose()}
+function act(k,s){
+ B.menu=0;
+ if(k==='a'){const d=Math.max(1,atk()+R(-3,3));B.hp-=d;B.log.push(`${P.name}の こうげき！ ${d}ダメージ！`)}
+ else if(k==='m'){const sp=SP[s];if(P.mp<sp[1]){B.log.push('MPが たりない！');return render()}P.mp-=sp[1];
+  if(sp[3]==='h'){const v=Math.min(mhp()-P.hp,sp[2]+P.lv*3);P.hp+=v;B.log.push(`${sp[0]}！ HPが ${v}かいふくした！`)}
+  else{const d=sp[2]+P.lv*2+R(0,5);B.hp-=d;B.log.push(`${sp[0]}！ ${B.n}に ${d}ダメージ！`)}}
+ else if(k==='r'){if(R(1,10)<=6){B.log.push('うまく にげきれた！');B.end=1;return render()}B.log.push('しかし まわりこまれた！')}
+ if(B.hp<=0)return win();
+ eAtk();render();
+}
+function win(){
+ B.log.push(`${B.n}を たおした！ ${B.exp}EXPと${B.g}Gを てにいれた！`);P.exp+=B.exp;P.gold+=B.g;
+ while(P.exp>=need()){P.exp-=need();P.lv++;P.hp=mhp();P.mp=mmp();B.log.push(`レベルが ${P.lv}に あがった！`)}
+ B.end=1;save();render();
+}
+function lose(){P.hp=0;P.gold=Math.floor(P.gold/2);B.end=1;B.log.push(`${P.name}は ちからつきた…。ゴールドを はんぶん うしなった。`);P.hp=mhp();P.mp=mmp();save();render()}
+function endB(){B=null;tab='gd';msg='ギルドに もどった。';render()}
+function learn(i){const s=SP[i];P.gold-=s[5];P.sp.push(i);msg=`${s[0]}を おぼえた！`;save();render()}
+function buy(k,i){const it=ITEMS[k][i];P.gold-=it[2];P.eq[k]=i;tab='st';msg=`${it[0]}を そうびした！ ステータスで すがたを たしかめよう。`;save();render()}
+function rest(){P.hp=mhp();P.mp=mmp();msg='ぐっすり ねむって かいふくした！';save();render()}
+function reset(){if(confirm('データを消して最初からやり直しますか？')){try{localStorage.removeItem('tensei1')}catch(e){}location.reload()}}
+function start(){
+ const n=prompt('あなたの名前は？','ユウト')||'ユウト';
+ P={name:n,lv:1,exp:0,gold:50,hp:42,mp:16,eq:{weapon:0,armor:0,helm:0,cape:0},sp:[0]};
+ msg='ブラック企業からの帰り道、トラックに轢かれた…。目を覚ますと、そこは剣と魔法の異世界だった！ ギルドで冒険者登録をして、最強を目指そう。';save();
+}
+try{P=JSON.parse(localStorage.getItem('tensei1'))}catch(e){P=null}
+if(!P)start();
+render();
+</script></body></html>
